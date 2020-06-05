@@ -12,15 +12,25 @@ Depth? 2D is more deeper than 3D
 (2 x 2 x 2) Upconvolution - (3 x 3 x 3) Conv3D - (Batchnorm) - ReLU (ELU?)
 
 ##To Do:
-Get access to data and facebook server
+~~Get access to data and facebook server.~~
 
-Start design of network
+~~Start design of network.~~
 
-Write down my timeline given the challenge schedule + thesis
+~~Make sure network works with demo data.~~
 
-Attention map 
+~~Write down my timeline given the challenge schedule + thesis.~~
 
-Start with baseline 3D unet model, might try change the loss function later and add attention maps
+~~Split dataset into train and val.~~
+
+~~Start with baseline 3D unet model, might try change the loss function later and add attention maps~~
+
+Attention map.
+
+Use orig-TOF or pre-TOF?
+
+Rework random patch loading in dataloader.
+
+Install nibabel in environment.
 
 ##Concerns:
 Data augmentations?
