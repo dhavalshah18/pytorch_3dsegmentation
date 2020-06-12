@@ -30,6 +30,10 @@ Use orig-TOF or pre-TOF?
 
 Rework random patch loading in dataloader.
 
+- For training, use location of aneurysm and only train using 3D volume around aneurysm.
+- When no anuerysm, use random volume.
+- When more than one aneurysm??
+
 Install nibabel in environment.
 
 ##Concerns:
