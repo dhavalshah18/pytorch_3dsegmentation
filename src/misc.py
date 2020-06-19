@@ -6,14 +6,17 @@ from torch.autograd import Variable
 from itertools import product
 
 
-def dice_coeff(outputs, targets, smooth=1, pred=False):
+def dice_coeff(outputs, targets, num_classes, smooth=1, pred=False):
     if pred:
         pred = outputs
     else:
         _, pred = torch.max(outputs, 1)
+        
+    if len(targets.size()) == 5:
+        targets = targets.squeeze(1)
 
-    pred = F.one_hot(pred.long(), num_classes=2)
-    targets = F.one_hot(targets.long(), num_classes=2)
+    pred = F.one_hot(pred.long(), num_classes=num_classes)
+    targets = F.one_hot(targets.long(), num_classes=num_classes)
     
     dim = tuple(range(1, len(pred.shape)-1))
     intersection = torch.sum(targets * pred, dim=dim, dtype=torch.float)

@@ -55,7 +55,7 @@ class MRAData(data.Dataset):
         load_path = self.cases_dirs[index]
         
         # TODO: Orig or Pre??
-        raw_vol_path = load_path.joinpath("orig/TOF.nii.gz")
+        raw_vol_path = load_path.joinpath("pre/TOF.nii.gz")
         seg_vol_path = load_path.joinpath("aneurysms.nii.gz")
         
         # Load proxy so image not loaded into memory
@@ -75,17 +75,20 @@ class MRAData(data.Dataset):
 
             # Get center of aneurysm from location.txt file of case
             aneurysm_location_coords = self.get_aneurysm_coords(location_path)
-            
-#             print("Raw image size: ", raw_image.size())
-            
+                        
             # Get patch from centre of location of aneurysm
             raw_image, seg_image = self.get_patch(raw_image, seg_image, aneurysm_location_coords)
-            print("Raw patch size: ", raw_image.size())
         
-#             if self.transform == "normalize":
-#                 normalize = transforms.Normalize(torch.max(raw_image), torch.min(raw_image), 0., 255.)
-#                 raw_image = normalize(raw_image)
-        
+        if self.mode == "val":
+            # Resize val
+            location_path = load_path.joinpath("location.txt")
+
+            # Get center of aneurysm from location.txt file of case
+            aneurysm_location_coords = self.get_aneurysm_coords(location_path)
+                        
+            # Get patch from centre of location of aneurysm
+            raw_image, seg_image = self.get_patch(raw_image, seg_image, aneurysm_location_coords)
+
         return raw_image, seg_image
     
     def get_aneurysm_coords(self, location_path):
@@ -156,11 +159,20 @@ class MRAData(data.Dataset):
             mins = np.amin(coords, 0)[:3]
             maxs = np.amax(coords, 0)[:3]
 
-            dist = maxs - mins
-            rems = self.patch_size - dist
+            remainders = self.patch_size - (maxs - mins)
             
-            slices_min = mins - rems//2
-            slices_max = maxs + (rems - rems//2)
+            slices_min = np.clip(mins - remainders//2, 0, None)
+            slices_max = np.clip(maxs + (remainders - remainders//2), None, raw_image.size())
+            
+            for i in range(3):
+                rem = self.patch_size[i] - (slices_max[i] - slices_min[i])
+                if rem and slices_max[i] < raw_image.size()[i]:
+                    slices_max[i] += rem
+                elif rem and slices_min[i] > 0:
+                    slices_min[i] -= rem
+                
+                assert (slices_max[i] - slices_min[i] == self.patch_size[i]), "Mis-sized slice"
+
             
             raw_patch = raw_image[slices_min[0]:slices_max[0], 
                                   slices_min[1]:slices_max[1],

@@ -50,10 +50,7 @@ class AnalysisBlock(nn.Module):
         # TODO: Maybe change to tensor instead of list
         synthesis_features = []
         for key, layer in self.module_dict.items():
-            print("Layer: ", key)
-            # print("Input to layer: ", x.shape)
-            x = layer(x)
-            print("Output from layer: ", x.shape, "\n")
+            x = layer(x).contiguous()
 
             if key.startswith("conv") and key.endswith("1"):
                 synthesis_features.append(x)
@@ -65,7 +62,6 @@ class UpConv(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=2, padding=1, output_padding=1):
         super().__init__()
         # TODO Up Convolution or Conv Transpose?
-
         self.up_conv = nn.ConvTranspose3d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size,
                                           stride=stride, padding=padding, output_padding=output_padding)
 
@@ -100,19 +96,39 @@ class SynthesisBlock(nn.Module):
                 self.module_dict["final_conv"] = final_conv
 
     def forward(self, x, high_res_features):
-
         for key, layer in self.module_dict.items():
-            print("Layer: ", key)
             if key.startswith("deconv"):
                 x = layer(x)
                 # Enforce same size
-                features = high_res_features[int(key[-1])][:, :, 0:x.size()[2], 0:x.size()[3], 0:x.size()[4]]
-                x = torch.cat((features, x), dim=1)
+                features = high_res_features[int(key[-1])][:, :, 0:x.size()[2], 0:x.size()[3], 0:x.size()[4]].contiguous()
+                x = torch.cat((features, x), dim=1).contiguous()
             else:
                 x = layer(x)
-            print("Output from layer: ", x.shape, "\n")
         return x
 
+class UNet(nn.Module):
+    def __init__(self, in_channels, out_channels, model_depth=4, pooling=2, final_activation="softmax"):
+        super().__init__()
+        self.encoder = AnalysisBlock(in_channels=in_channels, model_depth=model_depth, pooling=pooling)
+        self.encoder.cuda()
+        self.decoder = SynthesisBlock(out_channels=out_channels, model_depth=model_depth)
+        self.decoder.cuda()
+        
+        if final_activation=="softmax":
+            self.final = nn.Softmax(dim=1)
+            self.final.cuda()
+        elif final_activation=="sigmoud":
+            self.final = nn.Sigmoid()
+            self.final.cuda()
+        #TODO other final layers
+    
+    def forward(self, x):
+        x, features = self.encoder(x)
+        x = self.decoder(x, features)
+        if self.final:
+            x = self.final(x)
+        
+        return x
 
 if __name__ == "__main__":
     x_test = torch.randn(1, 3, 132, 132, 116)
