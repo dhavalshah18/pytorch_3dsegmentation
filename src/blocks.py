@@ -117,9 +117,11 @@ class UNet(nn.Module):
         if final_activation=="softmax":
             self.final = nn.Softmax(dim=1)
             self.final.cuda()
-        elif final_activation=="sigmoud":
+        elif final_activation=="sigmoid":
             self.final = nn.Sigmoid()
             self.final.cuda()
+        else:
+            self.final = None
         #TODO other final layers
     
     def forward(self, x):

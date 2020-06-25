@@ -4,7 +4,7 @@ import torch
 import torch.utils.data as data
 # from torchvision import transforms
 import nibabel as nib
-
+from misc import Normalize
 
 class MRAData(data.Dataset):
     """ 
@@ -78,6 +78,10 @@ class MRAData(data.Dataset):
                         
             # Get patch from centre of location of aneurysm
             raw_image, seg_image = self.get_patch(raw_image, seg_image, aneurysm_location_coords)
+            
+            if self.transform == "normalize":
+                normalize = Normalize(torch.max(raw_image), torch.min(raw_image), 255., 0.)
+                raw_image = normalize(raw_image)
         
         if self.mode == "val":
             # Resize val
@@ -88,6 +92,10 @@ class MRAData(data.Dataset):
                         
             # Get patch from centre of location of aneurysm
             raw_image, seg_image = self.get_patch(raw_image, seg_image, aneurysm_location_coords)
+            
+            if self.transform == "normalize":
+                normalize = Normalize(torch.max(raw_image), torch.min(raw_image), 255., 0.)
+                raw_image = normalize(raw_image)
 
         return raw_image, seg_image
     

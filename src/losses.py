@@ -5,17 +5,22 @@ from torch.nn import functional as F
 import numpy as np
 
 
-def dice_loss(output, target, num_classes):
+def dice_loss(output, target):
     """
     input is a torch variable of size BatchxCxHxWxD representing log probabilities for each class
     target is a 1-hot representation of the groundtruth, shoud have same size as the input
     """
     if len(target.size()) == 5:
         target = target.squeeze(1)
-    target = F.one_hot(target.long(), num_classes=num_classes)
-    target = target.permute(0, 4, 1, 2, 3)
-
+    
+    # probs = B x C x H x W x D
     probs = F.softmax(output, dim=1)
+        
+    # target = B x H x W x D    
+    target = F.one_hot(target.long(), num_classes=probs.size()[1])
+    # target = B x C x H x W x D
+    target = target.permute(0, 4, 1, 2, 3)
+    
     num = probs * target  # b,c,h,w--p*g
     num = torch.sum(num, dim=3)  # b,c,h
     num = torch.sum(num, dim=2)

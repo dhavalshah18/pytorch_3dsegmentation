@@ -6,21 +6,22 @@ from torch.autograd import Variable
 from itertools import product
 
 
-def dice_coeff(outputs, targets, num_classes, smooth=1, pred=False):
+def dice_coeff(output, target, smooth=1, pred=False):
     if pred:
-        pred = outputs
+        pred = output
     else:
-        _, pred = torch.max(outputs, 1)
-        
-    if len(targets.size()) == 5:
-        targets = targets.squeeze(1)
+#         probs = F.softmax(output, dim=1)
+        _, pred = torch.max(output, 1)
 
-    pred = F.one_hot(pred.long(), num_classes=num_classes)
-    targets = F.one_hot(targets.long(), num_classes=num_classes)
+    if len(target.size()) == 5:
+        target = target.squeeze(1)
+    
+    target = F.one_hot(target.long(), num_classes=output.size()[1])
+    pred = F.one_hot(pred.long(), num_classes=output.size()[1])
     
     dim = tuple(range(1, len(pred.shape)-1))
-    intersection = torch.sum(targets * pred, dim=dim, dtype=torch.float)
-    union = torch.sum(targets, dim=dim, dtype=torch.float) + torch.sum(pred, dim=dim, dtype=torch.float)
+    intersection = torch.sum(target * pred, dim=dim, dtype=torch.float)
+    union = torch.sum(target, dim=dim, dtype=torch.float) + torch.sum(pred, dim=dim, dtype=torch.float)
     
     dice = torch.mean((2. * intersection + smooth)/(union + smooth), dtype=torch.float)
         
@@ -64,6 +65,24 @@ def patchify(volume, patch_size, step):
         patches[i, j, k] = volume[:, (i * s_h):(i * s_h) + p_h, (j * s_w):(j * s_w) + p_w, (k * s_d):(k * s_d) + p_d]
 
     return patches
+
+class Normalize(object):
+    """Normalizes keypoints.
+    """
+    def __init__(self, max_val, min_val, new_max, new_min):
+        self.max = max_val
+        self.min = min_val
+        self.new_max = new_max
+        self.new_min = new_min
+    
+    def __call__(self, sample):
+
+        image = (sample - self.min) * (self.new_max - self.new_min)/(self.max - self.min) + self.new_min
+        ##############################################################
+        # End of your code                                           #
+        ##############################################################
+        return image
+
 
 
 def unpatchify(patches, step, imsize, scale_factor):

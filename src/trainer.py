@@ -15,14 +15,17 @@ class Solver(object):
                           "weight_decay": 0.}
 
     def __init__(self, optim=torch.optim.SGD, optim_args={},
-                 loss_func=ls.dice_loss, device=torch.cuda.current_device()):
+                 loss_func=ls.dice_loss, multi_device=[]):
 
         optim_args_merged = self.default_optim_args.copy()
         optim_args_merged.update(optim_args)
         self.optim_args = optim_args_merged
         self.optim = optim
         self.loss_func = loss_func
-        self.device = device
+        if multi_device != []:
+            self.devices = [torch.device("cuda", i) for i in multi_device]
+        else:
+            self.devices = []
         self.best_train_dice = -1
         self.best_val_dice = -1
         self.best_train_model = None
@@ -56,19 +59,25 @@ class Solver(object):
         optim = self.optim(model.parameters(), **self.optim_args)
         self._reset_histories()
         iter_per_epoch = len(train_loader)
-        model.to(self.device).cuda()
         model.train()
-
+        
         print("START TRAIN")
 
         for epoch in range(num_epochs):
 #             Training
             for i, (inputs, targets) in enumerate(train_loader, 1):
-                inputs, targets = inputs.to(self.device, dtype=torch.float).cuda(), targets.to(self.device, dtype=torch.long).cuda()
+                inputs, targets = inputs.cuda().to(dtype=torch.float), \
+                                    targets.cuda().to(dtype=torch.long)
+                if self.devices != []:
+                    print(self.devices[0])
+                    device = self.devices[0]
+                    model = model.to(device)
+                    inputs, targets = inputs.to(device), targets.to(device)
+
                 optim.zero_grad()
 
                 outputs = model(inputs)
-                loss = self.loss_func(outputs, targets, outputs.size()[1])
+                loss = self.loss_func(outputs, targets)
                 loss.backward()
                 optim.step()
 
@@ -76,7 +85,7 @@ class Solver(object):
                 self.train_loss_history.append(loss.detach().cpu().numpy())
                 if log_nth and i % log_nth == 0:
                     last_log_nth_losses = self.train_loss_history[-log_nth:]
-                    dice_coeff = ms.dice_coeff(outputs, targets, outputs.size()[1]).detach().cpu().numpy()
+                    dice_coeff = ms.dice_coeff(outputs, targets).detach().cpu().numpy()
                     train_loss = np.mean(last_log_nth_losses)
                     print('[Iteration %d/%d] TRAIN loss: %.3f' %
                           (i + epoch * iter_per_epoch,
@@ -87,7 +96,7 @@ class Solver(object):
 
             _, preds = torch.max(outputs, 1)
             train_acc = np.mean((preds == targets).detach().cpu().numpy())
-            dice_coeff = ms.dice_coeff(outputs, targets, outputs.size()[1]).detach().cpu().numpy()
+            dice_coeff = ms.dice_coeff(outputs, targets).detach().cpu().numpy()
             self.train_acc_history.append(train_acc)
             self.train_dice_coeff_history.append(dice_coeff)
 
@@ -100,16 +109,22 @@ class Solver(object):
             val_scores = []
             model.eval()
             for j, (inputs, targets) in enumerate(val_loader, 1):
-                inputs, targets = inputs.to(self.device, dtype=torch.float).cuda(), targets.to(self.device, dtype=torch.long).cuda()
+                inputs, targets = inputs.cuda().to(dtype=torch.float), \
+                                    targets.cuda().to(dtype=torch.long)
+                if self.devices != []:
+                    print(self.devices[1])
+                    device = self.devices[1]
+                    inputs, targets = inputs.to(device), targets.to(device)
+                    
                 outputs = model(inputs)
-                loss = self.loss_func(outputs, targets, outputs.size()[1])
+                loss = self.loss_func(outputs, targets)
                 val_losses.append(loss.detach().cpu().numpy())
 
                 _, preds = torch.max(outputs, 1)
                 scores = np.mean((preds == targets).detach().cpu().numpy())
                 val_scores.append(scores)
 
-            dice_coeff = ms.dice_coeff(outputs, targets, outputs.size()[1]).detach().cpu().numpy()
+            dice_coeff = ms.dice_coeff(outputs, targets).detach().cpu().numpy()
             self.val_dice_coeff_history.append(dice_coeff)
             val_acc, val_loss = np.mean(val_scores), np.mean(val_losses)
             if log_nth:
