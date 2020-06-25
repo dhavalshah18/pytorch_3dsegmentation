@@ -16,8 +16,8 @@ def dice_loss(output, target):
     # probs = B x C x H x W x D
     probs = F.softmax(output, dim=1)
         
-    # target = B x H x W x D    
-    target = F.one_hot(target.long(), num_classes=probs.size()[1])
+    # target = B x H x W x D
+    target = F.one_hot(target.long(), num_classes=2)
     # target = B x C x H x W x D
     target = target.permute(0, 4, 1, 2, 3)
     

@@ -10,15 +10,15 @@ def dice_coeff(output, target, smooth=1, pred=False):
     if pred:
         pred = output
     else:
-#         probs = F.softmax(output, dim=1)
-        _, pred = torch.max(output, 1)
+        probs = F.softmax(output, dim=1)
+        _, pred = torch.max(probs, 1)
 
     if len(target.size()) == 5:
         target = target.squeeze(1)
     
-    target = F.one_hot(target.long(), num_classes=output.size()[1])
-    pred = F.one_hot(pred.long(), num_classes=output.size()[1])
-    
+    target = F.one_hot(target.long(), num_classes=2)
+    pred = F.one_hot(pred.long(), num_classes=2)
+
     dim = tuple(range(1, len(pred.shape)-1))
     intersection = torch.sum(target * pred, dim=dim, dtype=torch.float)
     union = torch.sum(target, dim=dim, dtype=torch.float) + torch.sum(pred, dim=dim, dtype=torch.float)
