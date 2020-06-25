@@ -15,17 +15,13 @@ class Solver(object):
                           "weight_decay": 0.}
 
     def __init__(self, optim=torch.optim.SGD, optim_args={},
-                 loss_func=ls.dice_loss, multi_device=[]):
+                 loss_func=ls.dice_loss):
 
         optim_args_merged = self.default_optim_args.copy()
         optim_args_merged.update(optim_args)
         self.optim_args = optim_args_merged
         self.optim = optim
         self.loss_func = loss_func
-        if multi_device != []:
-            self.devices = [torch.device("cuda", i) for i in multi_device]
-        else:
-            self.devices = []
         self.best_train_dice = -1
         self.best_val_dice = -1
         self.best_train_model = None
@@ -68,11 +64,6 @@ class Solver(object):
             for i, (inputs, targets) in enumerate(train_loader, 1):
                 inputs, targets = inputs.cuda().to(dtype=torch.float), \
                                     targets.cuda().to(dtype=torch.long)
-                if self.devices != []:
-                    print(self.devices[0])
-                    device = self.devices[0]
-                    model = model.to(device)
-                    inputs, targets = inputs.to(device), targets.to(device)
 
                 optim.zero_grad()
 
@@ -111,10 +102,6 @@ class Solver(object):
             for j, (inputs, targets) in enumerate(val_loader, 1):
                 inputs, targets = inputs.cuda().to(dtype=torch.float), \
                                     targets.cuda().to(dtype=torch.long)
-                if self.devices != []:
-                    print(self.devices[1])
-                    device = self.devices[1]
-                    inputs, targets = inputs.to(device), targets.to(device)
                     
                 outputs = model(inputs)
                 loss = self.loss_func(outputs, targets)
