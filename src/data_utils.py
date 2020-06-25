@@ -13,7 +13,7 @@ class MRAData(data.Dataset):
     """
     
     def __init__(self, root_path, transform="normalize", 
-                 patch_size=[132, 132, 116], mode="train"):
+                 patch_size=[132, 132, 116], mode="train", suppress=False):
         # Note: Should already be split into train, val and test folders
         # TODO change to accept any kind of folder
         self.root_dir = pathlib.Path(root_path).joinpath(mode)
@@ -25,6 +25,8 @@ class MRAData(data.Dataset):
         
         if isinstance(patch_size, int):
             patch_size = [patch_size, patch_size, patch_size]
+            
+        self.suppress = suppress
         
         self.patch_size = patch_size
         self.mode = mode
@@ -82,6 +84,10 @@ class MRAData(data.Dataset):
             if self.transform == "normalize":
                 normalize = Normalize(torch.max(raw_image), torch.min(raw_image), 255., 0.)
                 raw_image = normalize(raw_image)
+                
+            if self.suppress:
+                zeros = torch.zeros_like(seg_image)
+                seg_image = torch.where(seg_image==2, zeros, seg_image)
         
         if self.mode == "val":
             # Resize val
@@ -96,7 +102,11 @@ class MRAData(data.Dataset):
             if self.transform == "normalize":
                 normalize = Normalize(torch.max(raw_image), torch.min(raw_image), 255., 0.)
                 raw_image = normalize(raw_image)
-
+                
+            if self.suppress:
+                zeros = torch.zeros_like(seg_image)
+                seg_image = torch.where(seg_image==2, zeros, seg_image)
+                
         return raw_image, seg_image
     
     def get_aneurysm_coords(self, location_path):
