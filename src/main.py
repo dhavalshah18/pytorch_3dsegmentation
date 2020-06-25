@@ -17,18 +17,18 @@ def main():
     
     size = [124, 124, 52]
 
-    train_data = MRAData(dataset_path, patch_size=size, mode="train")
-    val_data = MRAData(dataset_path, patch_size=size, mode="val")
+    train_data = MRAData(dataset_path, patch_size=size, mode="train", suppress=True)
+    val_data = MRAData(dataset_path, patch_size=size, mode="val", suppress=True)
 
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=3, shuffle=True, num_workers=2)
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=2, shuffle=True, num_workers=2)
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=2, shuffle=False, num_workers=2)
         
-    model = UNet(in_channels=1, out_channels=3, final_activation = "")
+    model = UNet(in_channels=1, out_channels=2, final_activation = "sigmoid")
     model = model.cuda()
 
-    optim_args_SGD = {"lr": 1e-2, "weight_decay": 0.005, "momentum":0.9, "nesterov":True}
+    optim_args_SGD = {"lr": 1e-1, "weight_decay": 0.0005, "momentum":0.9, "nesterov":True}
 
-    optim_args_Adam = {"lr": 1e-2, "weight_decay": 0.005}
+    optim_args_Adam = {"lr": 1e-2, "weight_decay": 0.0005}
 
     solver = Solver(optim_args=optim_args_SGD, optim=torch.optim.SGD)
     
