@@ -15,26 +15,26 @@ def main():
 
     dataset_path = pathlib.Path("/home/dhaval/adam_data")
     
-    size = [124, 124, 52]
+    size = [28, 28, 28]
 
-    train_data = MRAData(dataset_path, patch_size=size, mode="train", suppress=True)
-    val_data = MRAData(dataset_path, patch_size=size, mode="val", suppress=True)
+    train_data = MRAData(dataset_path, patch_size=size, mode="train")
+    val_data = MRAData(dataset_path, patch_size=size, mode="val")
 
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=2, shuffle=True, num_workers=2)
-    val_loader = torch.utils.data.DataLoader(val_data, batch_size=2, shuffle=False, num_workers=2)
+    train_loader = torch.utils.data.DataLoader(train_data, batch_size=1, shuffle=True, num_workers=2)
+    val_loader = torch.utils.data.DataLoader(val_data, batch_size=1, shuffle=False, num_workers=2)
         
-    model = UNet(in_channels=1, out_channels=2, final_activation = "sigmoid")
+    model = UNet(in_channels=1, out_channels=2, final_activation = "")
     model = model.cuda()
 
-    optim_args_SGD = {"lr": 1e-1, "weight_decay": 0.0005, "momentum":0.9, "nesterov":True}
+    optim_args_SGD = {"lr": 1e-3, "weight_decay": 0.005, "momentum":0.9, "nesterov":True}
 
-    optim_args_Adam = {"lr": 1e-2, "weight_decay": 0.0005}
+    optim_args_Adam = {"lr": 2e-2, "weight_decay": 0.005}
 
     solver = Solver(optim_args=optim_args_SGD, optim=torch.optim.SGD)
     
-    solver.train(model, train_loader, val_loader, log_nth=5, num_epochs=25)
+    solver.train(model, train_loader, val_loader, log_nth=5, num_epochs=50)
     
-    torch.save(model.state_dict(), "unet_1.pth")
+    torch.save(model.state_dict(), "unet28.pth")
     
 if __name__ == "__main__":
     main()

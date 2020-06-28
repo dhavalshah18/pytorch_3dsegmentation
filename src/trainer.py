@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn
 import torch.optim
-# from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
 import losses as ls
 import misc as ms
@@ -28,7 +28,7 @@ class Solver(object):
         self.best_val_model = None
 
         self._reset_histories()
-#         self.writer = SummaryWriter()
+        self.writer = SummaryWriter()
 
     def _reset_histories(self):
         """Resets train and val histories for the accuracy and the loss. """
@@ -82,8 +82,8 @@ class Solver(object):
                           (i + epoch * iter_per_epoch,
                            iter_per_epoch * num_epochs,
                            train_loss))
-#                     self.writer.add_scalar("Soft dice loss", train_loss, i + epoch * iter_per_epoch)
-#                     self.writer.add_scalar("Dice coefficient", dice_coeff, i + epoch * iter_per_epoch)
+                    self.writer.add_scalar("Dice loss", train_loss, i + epoch * iter_per_epoch)
+                    self.writer.add_scalar("Dice coefficient", dice_coeff, i + epoch * iter_per_epoch)
 
             _, preds = torch.max(outputs, 1)
             train_acc = np.mean((preds == targets).detach().cpu().numpy())
