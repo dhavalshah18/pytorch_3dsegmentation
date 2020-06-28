@@ -10,16 +10,22 @@ def dice_coeff(output, target, smooth=1, pred=False):
     if pred:
         pred = output
     else:
+        if len(output.size()) == 3:
+            print(len(output.size()))
+            output = output.unsqueeze(0).unsqueeze(0)
+            print(len(output.size()))
+
         probs = F.softmax(output, dim=1)
         _, pred = torch.max(probs, 1)
 
     if len(target.size()) == 5:
         target = target.squeeze(1)
     
+    print(pred.size(), target.size())
     target = F.one_hot(target.long(), num_classes=2)
     pred = F.one_hot(pred.long(), num_classes=2)
 
-    dim = tuple(range(1, len(pred.shape)-1))
+    dim = tuple(range(1, len(pred.size())-1))
     intersection = torch.sum(target * pred, dim=dim, dtype=torch.float)
     union = torch.sum(target, dim=dim, dtype=torch.float) + torch.sum(pred, dim=dim, dtype=torch.float)
     
@@ -66,24 +72,6 @@ def patchify(volume, patch_size, step):
 
     return patches
 
-class Normalize(object):
-    """Normalizes keypoints.
-    """
-    def __init__(self, max_val, min_val, new_max, new_min):
-        self.max = max_val
-        self.min = min_val
-        self.new_max = new_max
-        self.new_min = new_min
-    
-    def __call__(self, sample):
-
-        image = (sample - self.min) * (self.new_max - self.new_min)/(self.max - self.min) + self.new_min
-        ##############################################################
-        # End of your code                                           #
-        ##############################################################
-        return image
-
-
 
 def unpatchify(patches, step, imsize, scale_factor):
     """
@@ -117,7 +105,7 @@ def unpatchify(patches, step, imsize, scale_factor):
     return volume[:, 0:r_h, 0:r_w, 0:r_d]
 
 
-def test(model, volume, patch_size=64, stride=60):
+def test(model, volume, patch_size=60, stride=64, batch_size=2):
     model.eval()
 
     patch_size = (1, patch_size, patch_size, patch_size)
@@ -129,11 +117,20 @@ def test(model, volume, patch_size=64, stride=60):
 
     output = torch.zeros((0, ) + patch_size[1:]).type(torch.FloatTensor)
 
-    batch_size = 5 # user input
+    batch_size = batch_size # user input
     num = int(np.ceil(1.0 * patches.shape[0] / batch_size))
 
     for i in range(num):
-        model_output = model.forward(patches[batch_size*i:batch_size*i + batch_size])
+#         print("{0} / {1}".format(i, num))
+        curr_patch = patches[batch_size*i:batch_size*i + batch_size]
+        
+        # Normalize volumes
+        for j in range(curr_patch.size(0)):
+            std, mean = torch.std_mean(curr_patch[j])
+            normalize = Normalize(mean, std)
+            curr_patch[j] = normalize(curr_patch[j])
+        
+        model_output = model(curr_patch)
 
         _, preds = torch.max(model_output, 1)
         preds = preds.cuda().type(torch.FloatTensor)
@@ -143,5 +140,23 @@ def test(model, volume, patch_size=64, stride=60):
     new_shape = patch_shape
     output = unpatchify(output.view(new_shape), stride, volume.shape, 1)
     output = output.squeeze(0)
+    print("Size: ", output.size())
+#     print("Unique: ", torch.unique(output))
     
     return output
+
+class Normalize(object):
+    """Normalizes keypoints.
+    """
+    def __init__(self, mean, std):
+        self.mean = mean
+        self.std = std
+    
+    def __call__(self, tensor):
+
+        assert len(tensor.size()) == 4
+        
+        
+        return tensor.sub_(self.mean).div_(self.std)
+
+

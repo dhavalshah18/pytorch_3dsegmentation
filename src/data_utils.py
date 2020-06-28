@@ -13,7 +13,7 @@ class MRAData(data.Dataset):
     """
     
     def __init__(self, root_path, transform="normalize", 
-                 patch_size=[132, 132, 116], mode="train", suppress=False):
+                 patch_size=[132, 132, 116], mode="train", suppress=True, leave_num=0):
         # Note: Should already be split into train, val and test folders
         # TODO change to accept any kind of folder
         self.root_dir = pathlib.Path(root_path).joinpath(mode)
@@ -30,10 +30,11 @@ class MRAData(data.Dataset):
         
         self.patch_size = patch_size
         self.mode = mode
+        self.leave_num = leave_num
         
         
     def __len__(self):
-        return len(self.cases_dirs)
+        return len(self.cases_dirs) - self.leave_num
     
     def __getitem__(self, index):
         if torch.is_tensor(index):
@@ -54,7 +55,7 @@ class MRAData(data.Dataset):
             raise TypeError("Invalid argument type.")
     
     def get_item_from_index(self, index):
-        load_path = self.cases_dirs[index]
+        load_path = self.cases_dirs[self.leave_num+index]
         
         # TODO: Orig or Pre??
         raw_vol_path = load_path.joinpath("pre/TOF.nii.gz")
@@ -68,11 +69,12 @@ class MRAData(data.Dataset):
         raw_data = np.asarray(raw_proxy.dataobj).astype(np.int32)
         seg_data = np.asarray(seg_proxy.dataobj).astype(np.int32)
 
-        raw_image = torch.from_numpy(raw_data)
-        seg_image = torch.from_numpy(seg_data)
+        raw_image = torch.from_numpy(raw_data).to(dtype=torch.float)
+        seg_image = torch.from_numpy(seg_data).to(dtype=torch.float)
+
         
         # If training only return single patch
-        if self.mode == "train":
+        if self.mode == "train" or self.mode == "val":
             location_path = load_path.joinpath("location.txt")
 
             # Get center of aneurysm from location.txt file of case
@@ -82,31 +84,16 @@ class MRAData(data.Dataset):
             raw_image, seg_image = self.get_patch(raw_image, seg_image, aneurysm_location_coords)
             
             if self.transform == "normalize":
-                normalize = Normalize(torch.max(raw_image), torch.min(raw_image), 255., 0.)
+                std, mean = torch.std_mean(raw_image)
+                normalize = Normalize(mean, std)
                 raw_image = normalize(raw_image)
                 
             if self.suppress:
                 zeros = torch.zeros_like(seg_image)
                 seg_image = torch.where(seg_image==2, zeros, seg_image)
+
+        # TODO patchify + unpatchify for val?
         
-        if self.mode == "val":
-            # Resize val
-            location_path = load_path.joinpath("location.txt")
-
-            # Get center of aneurysm from location.txt file of case
-            aneurysm_location_coords = self.get_aneurysm_coords(location_path)
-                        
-            # Get patch from centre of location of aneurysm
-            raw_image, seg_image = self.get_patch(raw_image, seg_image, aneurysm_location_coords)
-            
-            if self.transform == "normalize":
-                normalize = Normalize(torch.max(raw_image), torch.min(raw_image), 255., 0.)
-                raw_image = normalize(raw_image)
-                
-            if self.suppress:
-                zeros = torch.zeros_like(seg_image)
-                seg_image = torch.where(seg_image==2, zeros, seg_image)
-                
         return raw_image, seg_image
     
     def get_aneurysm_coords(self, location_path):
