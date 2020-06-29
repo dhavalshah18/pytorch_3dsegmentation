@@ -24,17 +24,19 @@ Depth? 2D is more deeper than 3D
 
 ~~Start with baseline 3D unet model, might try change the loss function later and add attention maps~~
 
+~~Install nibabel in environment.~~
+
+~~Use orig-TOF or pre-TOF?~~ pre-TOF
+
+~~Rework random patch loading in dataloader.~~
+
+~~- For training, use location of aneurysm and only train using 3D volume around aneurysm.~~
+~~- When no anuerysm, use random volume.~~
+~~- When more than one aneurysm??~~
+
 Attention map.
 
-Use orig-TOF or pre-TOF?
-
-Rework random patch loading in dataloader.
-
-- For training, use location of aneurysm and only train using 3D volume around aneurysm.
-- When no anuerysm, use random volume.
-- When more than one aneurysm??
-
-Install nibabel in environment.
+Voxel size resampling with nibabel.
 
 ##Concerns:
 Data augmentations?
