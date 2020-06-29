@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from torch.nn import functional as F
-from matplotlib.lines import Line2D
 from torch.autograd import Variable
 from itertools import product
 
@@ -11,9 +10,7 @@ def dice_coeff(output, target, smooth=1, pred=False):
         pred = output
     else:
         if len(output.size()) == 3:
-            print(len(output.size()))
             output = output.unsqueeze(0).unsqueeze(0)
-            print(len(output.size()))
 
         probs = F.softmax(output, dim=1)
         _, pred = torch.max(probs, 1)
@@ -21,7 +18,6 @@ def dice_coeff(output, target, smooth=1, pred=False):
     if len(target.size()) == 5:
         target = target.squeeze(1)
     
-    print(pred.size(), target.size())
     target = F.one_hot(target.long(), num_classes=2)
     pred = F.one_hot(pred.long(), num_classes=2)
 
