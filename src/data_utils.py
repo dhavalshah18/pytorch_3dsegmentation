@@ -2,8 +2,8 @@ import pathlib
 import numpy as np
 import torch
 import torch.utils.data as data
-# from torchvision import transforms
 import nibabel as nib
+import nibabel.processing as nibp
 from misc import Normalize
 
 class MRAData(data.Dataset):
@@ -63,10 +63,14 @@ class MRAData(data.Dataset):
         
         # Load proxy so image not loaded into memory
         raw_proxy = nib.load(str(raw_vol_path))
+        raw_proxy = nibp.conform(raw_proxy, voxel_size=(0.5, 0.5, 0.5))
         seg_proxy = nib.load(str(seg_vol_path))
+        seg_proxy = nibp.conform(seg_proxy, voxel_size=(0.5, 0.5, 0.5))
+
            
         # Get dataobj of proxy
         raw_data = np.asarray(raw_proxy.dataobj).astype(np.int32)
+#         print(raw_data.shape)
         seg_data = np.asarray(seg_proxy.dataobj).astype(np.int32)
 
         raw_image = torch.from_numpy(raw_data).to(dtype=torch.float)
