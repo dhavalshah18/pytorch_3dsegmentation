@@ -168,8 +168,8 @@ class AttentionBlock(nn.Module):
 class R2AnalysisBlock(nn.Module):
     def __init__(self, in_channels, model_depth=4, pooling=2):
         super().__init__()
-        init_out_channels = 32
-        num_conv_layers = 2
+        init_out_channels = 64
+        num_conv_layers = 1
         self.module_dict = nn.ModuleDict()
 
         for depth in range(model_depth):
@@ -177,7 +177,7 @@ class R2AnalysisBlock(nn.Module):
 
             for layer in range(num_conv_layers):
                 r2_conv_layer = RRCNNBlock(in_channels, out_channels)
-                self.module_dict["r2_conv_{}_{}".format(depth, layer)] = r2_conv_layer
+                self.module_dict["r2_conv_{}".format(depth)] = r2_conv_layer
                 in_channels, out_channels = out_channels, out_channels*2
 
             if depth != model_depth - 1:
@@ -190,7 +190,7 @@ class R2AnalysisBlock(nn.Module):
         for key, layer in self.module_dict.items():
             x = layer(x).contiguous()
 
-            if key.startswith("r2_conv") and key.endswith("1"):
+            if key.startswith("r2_conv"):
                 synthesis_features.append(x)
 
         return x, synthesis_features
@@ -200,7 +200,7 @@ class R2SynthesisBlock(nn.Module):
     def __init__(self, out_channels, model_depth=4):
         super().__init__()
         init_out_channels = 128
-        num_conv_layers = 2
+        num_conv_layers = 1
         self.module_dict = nn.ModuleDict()
 
         for depth in range(model_depth - 2, -1, -1):
@@ -217,7 +217,7 @@ class R2SynthesisBlock(nn.Module):
                     in_channels = in_channels + channels
 
                 r2_conv_layer = RRCNNBlock(in_channels=in_channels, out_channels=feat_channels)
-                self.module_dict["r2_conv_{}_{}".format(depth, layer)] = r2_conv_layer
+                self.module_dict["r2_conv_{}".format(depth)] = r2_conv_layer
 
             if depth == 0:
                 # TODO Figure out kernel size + padding + stride for final
@@ -303,10 +303,12 @@ if __name__ == "__main__":
 
     encoder = R2AnalysisBlock(in_channels=1)
     encoder.cuda()
+    print(encoder.module_dict)
     x_test, h = encoder(x_test)
 
     decoder = R2SynthesisBlock(out_channels=2)
     decoder.cuda()
+    print(decoder.module_dict)
     y = decoder(x_test, h)
 
     print("The shape of output: ", y.shape)
