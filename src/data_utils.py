@@ -6,16 +6,19 @@ import nibabel as nib
 import nibabel.processing as nibp
 from misc import Normalize
 
+
 class MRAData(data.Dataset):
     """ 
     Class defined to handle MRA data
     derived from pytorch's Dataset class.
     """
     
-    def __init__(self, root_path, transform="normalize", 
-                 patch_size=[132, 132, 116], mode="train", suppress=True, leave_num=0):
+    def __init__(self, root_path, transform="normalize",
+                 patch_size=None, mode="train", suppress=True, leave_num=0):
         # Note: Should already be split into train, val and test folders
         # TODO change to accept any kind of folder
+        if patch_size is None:
+            patch_size = [132, 132, 116]
         self.root_dir = pathlib.Path(root_path).joinpath(mode)
         
         # Array of paths of all case folders in root path
@@ -31,8 +34,7 @@ class MRAData(data.Dataset):
         self.patch_size = patch_size
         self.mode = mode
         self.leave_num = leave_num
-        
-        
+
     def __len__(self):
         return len(self.cases_dirs) - self.leave_num
     
@@ -63,20 +65,15 @@ class MRAData(data.Dataset):
         
         # Load proxy so image not loaded into memory
         raw_proxy = nib.load(str(raw_vol_path))
-        raw_proxy = nibp.conform(raw_proxy, voxel_size=(0.5, 0.5, 0.5))
         seg_proxy = nib.load(str(seg_vol_path))
-        seg_proxy = nibp.conform(seg_proxy, voxel_size=(0.5, 0.5, 0.5))
 
-           
         # Get dataobj of proxy
         raw_data = np.asarray(raw_proxy.dataobj).astype(np.int32)
-#         print(raw_data.shape)
         seg_data = np.asarray(seg_proxy.dataobj).astype(np.int32)
 
         raw_image = torch.from_numpy(raw_data).to(dtype=torch.float)
         seg_image = torch.from_numpy(seg_data).to(dtype=torch.float)
 
-        
         # If training only return single patch
         if self.mode == "train" or self.mode == "val":
             location_path = load_path.joinpath("location.txt")
@@ -94,22 +91,12 @@ class MRAData(data.Dataset):
                 
             if self.suppress:
                 zeros = torch.zeros_like(seg_image)
-                seg_image = torch.where(seg_image==2, zeros, seg_image)
+                seg_image = torch.where(seg_image == 2, zeros, seg_image)
 
         # TODO patchify + unpatchify for val?
         
         return raw_image, seg_image
-    
-    def get_aneurysm_coords(self, location_path):
-        location_file = open(str(location_path), "r").readlines()
-        location_coords = []
-        
-        for i in range(len(location_file)):
-            aneurysm = list(map(float, location_file[i].split(", ")))
-            location_coords.append(aneurysm)
-        
-        return location_coords
-    
+
     def get_patch(self, raw_image, seg_image, location_coords):
         if len(location_coords) == 0:
             # If no aneurysm, return random patch
@@ -150,8 +137,7 @@ class MRAData(data.Dataset):
                     slices_min[i] -= rem
                     
                 assert (slices_max[i] - slices_min[i] == self.patch_size[i]), "Mis-sized slice"
-                    
-            
+
             raw_patch = raw_image[slices_min[0]:slices_max[0],
                                   slices_min[1]:slices_max[1],
                                   slices_min[2]:slices_max[2]]
@@ -161,8 +147,7 @@ class MRAData(data.Dataset):
                                   slices_min[1]:slices_max[1],
                                   slices_min[2]:slices_max[2]]
             seg_patch = seg_patch.unsqueeze(0)
-            
-            
+
         elif len(location_coords) > 1:
             coords = np.array(location_coords).astype(int)
             mins = np.amin(coords, 0)[:3]
@@ -182,7 +167,6 @@ class MRAData(data.Dataset):
                 
                 assert (slices_max[i] - slices_min[i] == self.patch_size[i]), "Mis-sized slice"
 
-            
             raw_patch = raw_image[slices_min[0]:slices_max[0], 
                                   slices_min[1]:slices_max[1],
                                   slices_min[2]:slices_max[2]]
@@ -194,4 +178,14 @@ class MRAData(data.Dataset):
             seg_patch = seg_patch.unsqueeze(0)
             
         return raw_patch, seg_patch
-                                  
+
+    @staticmethod
+    def get_aneurysm_coords(location_path):
+        location_file = open(str(location_path), "r").readlines()
+        location_coords = []
+
+        for i in range(len(location_file)):
+            aneurysm = list(map(float, location_file[i].split(", ")))
+            location_coords.append(aneurysm)
+
+        return location_coords
