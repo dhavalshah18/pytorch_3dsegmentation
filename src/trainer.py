@@ -1,6 +1,7 @@
 """Class to do training of the network."""
 
 import numpy as np
+import time
 import torch
 import torch.nn
 import torch.optim
@@ -58,6 +59,7 @@ class Solver(object):
         model.train()
         
         print("START TRAIN")
+        start = time.time()
 
         for epoch in range(num_epochs):
 #             Training
@@ -92,8 +94,8 @@ class Solver(object):
             self.train_dice_coeff_history.append(dice_coeff)
 
             if log_nth:
-                print('[Epoch %d/%d] TRAIN acc/loss/dice: %.3f/%.3f/%.3f' %
-                      (epoch + 1, num_epochs, train_acc, train_loss, dice_coeff))
+                print('[Epoch %d/%d] TRAIN time/acc/loss/dice: %.3f/%.3f/%.3f/%.3f' %
+                      (epoch + 1, num_epochs, time.time()-start, train_acc, train_loss, dice_coeff))
 
             # Validation
             val_losses = []
@@ -123,5 +125,7 @@ class Solver(object):
             model.train()
 
         #################################################################
-
+        
+        end = time.time()
         print("FINISH")
+        print("TIME ELAPSED: {0}".format(end-start))
