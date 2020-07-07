@@ -117,7 +117,7 @@ def test(model, volume, patch_size=60, stride=64, batch_size=2):
     num = int(np.ceil(1.0 * patches.shape[0] / batch_size))
 
     for i in range(num):
-#         print("{0} / {1}".format(i, num))
+        print("{0} / {1}".format(i, num))
         curr_patch = patches[batch_size*i:batch_size*i + batch_size]
         
         # Normalize volumes

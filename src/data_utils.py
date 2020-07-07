@@ -80,7 +80,7 @@ class MRAData(data.Dataset):
 
             # Get center of aneurysm from location.txt file of case
             aneurysm_location_coords = self.get_aneurysm_coords(location_path)
-                        
+
             # Get patch from centre of location of aneurysm
             raw_image, seg_image = self.get_patch(raw_image, seg_image, aneurysm_location_coords)
             
