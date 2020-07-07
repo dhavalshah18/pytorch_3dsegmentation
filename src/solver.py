@@ -9,6 +9,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import losses as ls
 import misc as ms
+from network import init_weights
 
 
 class Solver(object):
@@ -56,6 +57,7 @@ class Solver(object):
         optim = self.optim(model.parameters(), **self.optim_args)
         self._reset_histories()
         iter_per_epoch = len(train_loader)
+        init_weights(model, init_type="xavier")
         model.train()
         
         print("START TRAIN")
@@ -64,6 +66,8 @@ class Solver(object):
         for epoch in range(num_epochs):
 #             Training
             for i, (inputs, targets) in enumerate(train_loader, 1):
+#                 if i==1:
+#                     self.writer.add_graph(model, inputs)
                 inputs, targets = inputs.cuda().to(dtype=torch.float), \
                                     targets.cuda().to(dtype=torch.long)
 
@@ -129,3 +133,8 @@ class Solver(object):
         end = time.time()
         print("FINISH")
         print("TIME ELAPSED: {0}".format(end-start))
+        
+    def test(self, model, loader, patch_size=44, stride=42):
+        pass
+        
+        
