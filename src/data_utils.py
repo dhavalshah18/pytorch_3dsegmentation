@@ -63,6 +63,7 @@ class MRAData(data.Dataset):
         raw_vol_path = load_path.joinpath("pre/TOF.nii.gz")
         seg_vol_path = load_path.joinpath("aneurysms.nii.gz")
         
+        
         # Load proxy so image not loaded into memory
         raw_proxy = nib.load(str(raw_vol_path))
         seg_proxy = nib.load(str(seg_vol_path))
@@ -70,9 +71,17 @@ class MRAData(data.Dataset):
         # Get dataobj of proxy
         raw_data = np.asarray(raw_proxy.dataobj).astype(np.int32)
         seg_data = np.asarray(seg_proxy.dataobj).astype(np.int32)
-
+        
         raw_image = torch.from_numpy(raw_data).to(dtype=torch.float)
         seg_image = torch.from_numpy(seg_data).to(dtype=torch.float)
+        
+        if self.transform == "normalize":
+            std, mean = torch.std_mean(raw_image)
+            normalize = Normalize(mean, std)
+            raw_image = normalize(raw_image)
+            
+        zeros = torch.zeros_like(seg_image)
+        raw_image = torch.where(raw_image >= 100., raw_image, zeros)
 
         # If training only return single patch
         if self.mode == "train" or self.mode == "val":
@@ -84,10 +93,7 @@ class MRAData(data.Dataset):
             # Get patch from centre of location of aneurysm
             raw_image, seg_image = self.get_patch(raw_image, seg_image, aneurysm_location_coords)
             
-            if self.transform == "normalize":
-                std, mean = torch.std_mean(raw_image)
-                normalize = Normalize(mean, std)
-                raw_image = normalize(raw_image)
+            
                 
             if self.suppress:
                 zeros = torch.zeros_like(seg_image)
