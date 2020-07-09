@@ -16,23 +16,26 @@ class MRAData(data.Dataset):
     def __init__(self, root_path, transform="normalize",
                  patch_size=None, mode="train", suppress=True, leave_num=0):
         # Note: Should already be split into train, val and test folders
-        # TODO change to accept any kind of folder
+        
+        self.root_dir = pathlib.Path(root_path)
+        self.transform = transform
+        self.mode = mode
+
+        # Array of paths of all case folders in root path
+        if self.mode=="train" or self.mode=="val":
+            with open(str(self.root_dir.joinpath(self.mode+".txt")), "r") as f:
+                dirs = f.readlines()
+            self.cases_dirs = [self.root_dir.joinpath(d.strip()+"/") for d in dirs]
+        else:
+            self.cases_dirs = [d for d in sorted(self.root_dir.glob("100*/"))]
+                    
         if patch_size is None:
             patch_size = [132, 132, 116]
-        self.root_dir = pathlib.Path(root_path).joinpath(mode)
-        
-        # Array of paths of all case folders in root path
-        self.cases_dirs = [cases for cases in sorted(self.root_dir.glob("100*/"))]
-        
-        self.transform = transform
-        
         if isinstance(patch_size, int):
             patch_size = [patch_size, patch_size, patch_size]
             
-        self.suppress = suppress
-        
         self.patch_size = patch_size
-        self.mode = mode
+        self.suppress = suppress
         self.leave_num = leave_num
 
     def __len__(self):
@@ -57,12 +60,11 @@ class MRAData(data.Dataset):
             raise TypeError("Invalid argument type.")
     
     def get_item_from_index(self, index):
-        load_path = self.cases_dirs[self.leave_num+index]
+        load_path = self.cases_dirs[index+self.leave_num]
         
         # TODO: Orig or Pre??
         raw_vol_path = load_path.joinpath("pre/TOF.nii.gz")
         seg_vol_path = load_path.joinpath("aneurysms.nii.gz")
-        
         
         # Load proxy so image not loaded into memory
         raw_proxy = nib.load(str(raw_vol_path))
@@ -92,9 +94,7 @@ class MRAData(data.Dataset):
 
             # Get patch from centre of location of aneurysm
             raw_image, seg_image = self.get_patch(raw_image, seg_image, aneurysm_location_coords)
-            
-            
-                
+ 
             if self.suppress:
                 zeros = torch.zeros_like(seg_image)
                 seg_image = torch.where(seg_image == 2, zeros, seg_image)
