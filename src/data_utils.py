@@ -71,19 +71,11 @@ class MRAData(data.Dataset):
         seg_proxy = nib.load(str(seg_vol_path))
 
         # Get dataobj of proxy
-        raw_data = np.asarray(raw_proxy.dataobj).astype(np.int32)
-        seg_data = np.asarray(seg_proxy.dataobj).astype(np.int32)
+        raw_data = raw_proxy.get_fdata()
+        seg_data = seg_proxy.get_fdata()
         
         raw_image = torch.from_numpy(raw_data).to(dtype=torch.float)
         seg_image = torch.from_numpy(seg_data).to(dtype=torch.float)
-        
-        if self.transform == "normalize":
-            std, mean = torch.std_mean(raw_image)
-            normalize = Normalize(mean, std)
-            raw_image = normalize(raw_image)
-            
-        zeros = torch.zeros_like(seg_image)
-        raw_image = torch.where(raw_image >= 100., raw_image, zeros)
 
         # If training only return single patch
         if self.mode == "train" or self.mode == "val":
@@ -98,9 +90,15 @@ class MRAData(data.Dataset):
             if self.suppress:
                 zeros = torch.zeros_like(seg_image)
                 seg_image = torch.where(seg_image == 2, zeros, seg_image)
-
-        # TODO patchify + unpatchify for val?
+                
+        if self.transform == "normalize":
+            std, mean = torch.std_mean(raw_image)
+            normalize = Normalize(mean, std)
+            raw_image = normalize(raw_image)
         
+        zeros = torch.zeros_like(seg_image)
+        raw_image = torch.where(raw_image >= 100., raw_image, zeros)
+
         return raw_image, seg_image
 
     def get_patch(self, raw_image, seg_image, location_coords):
@@ -195,3 +193,42 @@ class MRAData(data.Dataset):
             location_coords.append(aneurysm)
 
         return location_coords
+    
+    def createMIP(self, index, slices_num = 40):
+        load_path = self.cases_dirs[index+self.leave_num]
+        raw_vol_path = load_path.joinpath("pre/TOF.nii.gz")
+        raw_proxy = nib.load(str(raw_vol_path))
+        affine = raw_proxy.affine
+        raw_image = np.asarray(raw_proxy.dataobj).astype(np.int32)
+
+        img_shape = raw_image.shape
+        print(img_shape)
+        mipx, mipy, mipz = np.zeros(img_shape), np.zeros(img_shape), np.zeros(img_shape)
+        
+        for i in range(img_shape[0]):
+            start = max(0, i-slices_num)
+            x = raw_image[start:i+1]
+            mipx[i,:,:] = np.amax(x,0)
+        
+        for j in range(img_shape[1]):
+            start = max(0, j-slices_num)
+            y = raw_image[:, start:j+1, :]
+            mipy[:,j,:] = np.amax(y, 1)
+            
+        for k in range(img_shape[2]):
+            start = max(0, k-slices_num)
+            z = raw_image[:,:, start:k+1]
+            mipz[:,:,k] = np.amax(z, 2)
+        
+#         save_name_mipx = load_path.joinpath("mipx.nii.gz")
+#         save_name_mipy = load_path.joinpath("mipy.nii.gz")
+#         save_name_mipz = load_path.joinpath("mipz.nii.gz")
+#         out_mipx = nib.Nifti1Image(mipx, affine)
+#         out_mipy = nib.Nifti1Image(mipy, affine)
+#         out_mipz = nib.Nifti1Image(mipz, affine)
+
+#         nib.save(out_mipx, str(save_name_mipx))
+#         nib.save(out_mipy, str(save_name_mipy))
+#         nib.save(out_mipz, str(save_name_mipz))
+
+        return mipx, mipy, mipz
