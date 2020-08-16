@@ -26,7 +26,7 @@ def dice_loss(output, target):
     den2 = pred**2
     den2 = torch.sum(den2, dim=dim) 
     
-    dice = 2.*(num + 1.)/(den1 + den2 + 1.)
+    dice = 2.*(num)/(den1 + den2 + 1e-8)
     dice_eso = dice[:,1:]       # ignore background dice val, and take the foreground
 
     dice_total=-1*torch.sum(dice_eso)/dice_eso.size(0) # divide by batch_sz

@@ -10,20 +10,19 @@ import time
 
 
 def main():
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "4"
 
 #     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
     dataset_path = pathlib.Path("/home/dhaval/adam_data")
     
     size = [28, 28, 28]
-    batch_size = 8
-    optim = torch.optim.SGD
-    lr = 2e-2
-    wd = 0.005
+    batch_size = 16
+    optim = torch.optim.Adam
+    lr = 1e-3
+    wd = 1e-3
     epochs = 50
-    name = "r2attunet_newdata{0}.pth".format(size[0])
-
+    name = "model{0}.pth".format(size[0])
 
     train_data = MRAData(dataset_path, patch_size=size, mode="train", transform="")
     val_data = MRAData(dataset_path, patch_size=size, mode="val", transform="")
@@ -33,9 +32,9 @@ def main():
     model = nn.DataParallel(R2AttUNet(in_channels=1, out_channels=2))
     model = model.cuda()
     
-    optim_args_SGD = {"lr": lr, "weight_decay": wd, "momentum":0.9, "nesterov":True}
+    optim_args = {"lr": lr, "weight_decay": wd}
 
-    solver = Solver(optim_args=optim_args_SGD, optim=optim)
+    solver = Solver(optim_args=optim_args, optim=optim)
     
     start = time.time()
     solver.train(model, train_loader, val_loader, log_nth=5, num_epochs=epochs)

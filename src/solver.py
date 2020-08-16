@@ -65,7 +65,7 @@ class Solver(object):
 
         for epoch in range(num_epochs):
 #             Training
-            for i, (inputs, targets) in enumerate(train_loader, 1):
+            for i, (inputs, targets) in enumerate(train_loader):
                 inputs, targets = inputs.cuda().to(dtype=torch.float), \
                                     targets.cuda().to(dtype=torch.long)
 
@@ -103,7 +103,7 @@ class Solver(object):
             val_losses = []
             val_scores = []
             model.eval()
-            for j, (inputs, targets) in enumerate(val_loader, 1):
+            for j, (inputs, targets) in enumerate(val_loader):
                 inputs, targets = inputs.cuda().to(dtype=torch.float), \
                                     targets.cuda().to(dtype=torch.long)
                     

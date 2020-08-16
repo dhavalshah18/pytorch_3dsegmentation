@@ -5,7 +5,7 @@ from torch.autograd import Variable
 from itertools import product
 
 
-def dice_coeff(output, target, smooth=1, pred=False):
+def dice_coeff(output, target, smooth=1e-8, pred=False):
     if pred:
         pred = output
     else:
@@ -25,9 +25,12 @@ def dice_coeff(output, target, smooth=1, pred=False):
     intersection = torch.sum(target * pred, dim=dim, dtype=torch.float)
     union = torch.sum(target, dim=dim, dtype=torch.float) + torch.sum(pred, dim=dim, dtype=torch.float)
     
-    dice = torch.mean((2. * intersection + smooth)/(union + smooth), dtype=torch.float)
-        
-    return dice
+    dice = (2. * intersection) / (union + smooth)
+    
+    dice_eso = dice[:,1:]
+    dice_total = torch.sum(dice_eso)/dice_eso.size(0)
+    
+    return dice_total
 
 
 def patchify(volume, patch_size, step):
@@ -100,46 +103,6 @@ def unpatchify(patches, step, imsize, scale_factor):
     volume /= divisor
     return volume[:, 0:r_h, 0:r_w, 0:r_d]
 
-
-def test(model, volume, patch_size=60, stride=64, batch_size=2):
-    model.eval()
-
-    patch_size = (1, patch_size, patch_size, patch_size)
-    stride = (stride, stride, stride)
-
-    patches = patchify(volume, patch_size, stride)
-    patch_shape = patches.shape
-    patches = patches.view((-1,) + patch_size).cuda().type(torch.cuda.FloatTensor)
-
-    output = torch.zeros((0, ) + patch_size[1:]).type(torch.FloatTensor)
-
-    batch_size = batch_size # user input
-    num = int(np.ceil(1.0 * patches.shape[0] / batch_size))
-
-    for i in range(num):
-        print("{0} / {1}".format(i, num))
-        curr_patch = patches[batch_size*i:batch_size*i + batch_size]
-        
-        # Normalize volumes
-        for j in range(curr_patch.size(0)):
-            std, mean = torch.std_mean(curr_patch[j])
-            normalize = Normalize(mean, std)
-            curr_patch[j] = normalize(curr_patch[j])
-        
-        model_output = model(curr_patch)
-
-        _, preds = torch.max(model_output, 1)
-        preds = preds.cuda().type(torch.FloatTensor)
-
-        output = torch.cat((output, preds), 0)
-
-    new_shape = patch_shape
-    output = unpatchify(output.view(new_shape), stride, volume.shape, 1)
-    output = output.squeeze(0)
-    print("Size: ", output.size())
-#     print("Unique: ", torch.unique(output))
-    
-    return output
 
 class Normalize(object):
     """Normalizes keypoints.

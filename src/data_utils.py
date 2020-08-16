@@ -22,12 +22,14 @@ class MRAData(data.Dataset):
         self.mode = mode
 
         # Array of paths of all case folders in root path
-        if self.mode=="train" or self.mode=="val":
+        if self.mode == "train" or self.mode == "val":
             with open(str(self.root_dir.joinpath(self.mode+".txt")), "r") as f:
                 dirs = f.readlines()
             self.cases_dirs = [self.root_dir.joinpath(d.strip()+"/") for d in dirs]
         else:
-            self.cases_dirs = [d for d in sorted(self.root_dir.glob("100*/"))]
+            with open(str(self.root_dir.joinpath("val"+".txt")), "r") as f:
+                dirs = f.readlines()
+            self.cases_dirs = [self.root_dir.joinpath(d.strip()+"/") for d in dirs]
                     
         if patch_size is None:
             patch_size = [132, 132, 116]
@@ -76,6 +78,11 @@ class MRAData(data.Dataset):
         
         raw_image = torch.from_numpy(raw_data).to(dtype=torch.float)
         seg_image = torch.from_numpy(seg_data).to(dtype=torch.float)
+        
+        if self.transform == "normalize":
+            std, mean = torch.std_mean(raw_image)
+            normalize = Normalize(mean, std)
+            raw_image = normalize(raw_image)
 
         # If training only return single patch
         if self.mode == "train" or self.mode == "val":
@@ -90,14 +97,22 @@ class MRAData(data.Dataset):
             if self.suppress:
                 zeros = torch.zeros_like(seg_image)
                 seg_image = torch.where(seg_image == 2, zeros, seg_image)
+        
+        elif self.mode == "test":
+            raw_header = raw_proxy.header
+            seg_header = seg_proxy.header
+            raw_pixdim = raw_header["pixdim"][1:4]
+            raw_image, seg_image = raw_image.unsqueeze(0), seg_image.unsqueeze(0)
+            
+            if self.suppress:
+                zeros = torch.zeros_like(seg_image)
+                seg_image = torch.where(seg_image == 2, zeros, seg_image)
+        
+            return raw_image, seg_image, raw_pixdim
                 
-        if self.transform == "normalize":
-            std, mean = torch.std_mean(raw_image)
-            normalize = Normalize(mean, std)
-            raw_image = normalize(raw_image)
         
         zeros = torch.zeros_like(seg_image)
-        raw_image = torch.where(raw_image >= 100., raw_image, zeros)
+        raw_image = torch.where(raw_image >= 50., raw_image, zeros)
 
         return raw_image, seg_image
 
@@ -220,15 +235,5 @@ class MRAData(data.Dataset):
             z = raw_image[:,:, start:k+1]
             mipz[:,:,k] = np.amax(z, 2)
         
-#         save_name_mipx = load_path.joinpath("mipx.nii.gz")
-#         save_name_mipy = load_path.joinpath("mipy.nii.gz")
-#         save_name_mipz = load_path.joinpath("mipz.nii.gz")
-#         out_mipx = nib.Nifti1Image(mipx, affine)
-#         out_mipy = nib.Nifti1Image(mipy, affine)
-#         out_mipz = nib.Nifti1Image(mipz, affine)
-
-#         nib.save(out_mipx, str(save_name_mipx))
-#         nib.save(out_mipy, str(save_name_mipy))
-#         nib.save(out_mipz, str(save_name_mipz))
 
         return mipx, mipy, mipz
